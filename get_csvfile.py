@@ -9,17 +9,20 @@ import wave
 import os
 import glob
 import numpy as np
-from mp32wav import wavName, mp32wav
 
-listwav = []
-#遍历文件夹下.wav文件,生成相对路径列表
+#遍历文件夹下的所有.wav文件,生成相对路径列表
+list_wav = []
 def foreachWavDir(dirname):  
-    for fn in glob.glob(dirname + os.sep + '*' ): #获取dirname目录下的所有文件
-        if os.path.isdir(fn):   # 如果结果为文件夹
-            foreachDir(fn)   # 递归
-        elif os.path.splitext(fn)[1] == '.wav':
-            listwav.append(fn)
-    return listwav  
+    try:
+        for fn in glob.glob(dirname + os.sep + '*' ): #获取dirname目录下的所有文件
+            if os.path.isdir(fn):   # 如果结果为文件夹
+                foreachWavDir(fn)   # 递归
+            elif os.path.splitext(fn)[1] == '.wav':
+                list_wav.append(fn)
+    except FileNotFoundError:
+        msg = "sorry, the site " + dirname + "does not exist"
+        print(msg)
+    return list_wav  
 
 #将wav音乐转换为波形数据
 def get_wavdata(wavdir):
@@ -31,7 +34,6 @@ def get_wavdata(wavdir):
     waveData = waveData*1.0/(max(abs(waveData)))
     waveData = np.reshape(waveData,[nframes,nchannels])
     f.close()
-    print(nchannels)
     return waveData[:, 0], framerate
 
 #提取wav波形数据的平均频率
@@ -50,14 +52,30 @@ def get_avFreq(waveData, framerate):
                 indx = i+1
                 F.append(item_F)
     avFreq = np.mean(F)
-    print(avFreq)
-    return avFreq
+    print(int(avFreq))
+    return int(avFreq)
+
+#读取txt文件中的url到一个列表中
+def read_url(txtfile):
+    url_dict={}
+    with open(txtfile, 'rb') as f:
+        for line in f.readlines():
+            line = line.decode()
+            url_one = line.strip('\n')  
+            name_and_ext = url_one.split('/')[-1]
+            name,ext = os.path.splitext(name_and_ext)
+            url_dict[name] = url_one
+    print(len(url_dict))
+    return url_dict, len(url_dict)
 
 #将音乐名和对应的平均频率保存在csv文件中
 def csvFile(musicfiledir):
     datalist = []
-    listwav = foreachWavDir(musicfiledir)#获取wav文件列表
-    for wavdir in listwav:
+    list_wav = foreachWavDir(musicfiledir)#获取wav文件列表
+    print(list_wav)
+    url_name = '.\\YinYue\\'+musicfiledir.split('\\')[3] + '.txt'
+    url_dict, length = read_url(url_name)
+    for wavdir in list_wav:
         musicdict = {}
         filepath,fullflname = os.path.split(wavdir) #将路径和文件名分开
         fname,ext = os.path.splitext(fullflname)#将文件名和其扩展名分开             
@@ -65,24 +83,20 @@ def csvFile(musicfiledir):
         avFreq = get_avFreq(waveData, framerate)   
         musicdict['music_name'] = fname
         musicdict['average_frequency'] = avFreq
+        musicdict['url'] = url_dict[fname]
         datalist.append(musicdict)       
-    headers = ['music_name', 'average_frequency']
-    csv_name =  musicfiledir + 'list.csv'
+    headers = ['music_name', 'average_frequency', 'url']
+    csv_name =  '.\\YinYue\\'+musicfiledir.split('\\')[3] + '.csv'
     with open(csv_name, 'w', encoding='utf-8', newline='') as fp:
         writer = csv.DictWriter(fp, headers)
         writer.writeheader()
         writer.writerows(datalist)
-    return datalist      
-
-#返回数据列表
-def dataList():
-    wakedatalist = csvFile('.\YinYue\wav\wakeUpMusic')
-    sleepdatalist = csvFile('.\YinYue\wav\SleepingMusic')
-    return wakedatalist, sleepdatalist
+    return list_wav     
            
 if __name__ == '__main__':
-    dataList()
-    
+#    list_wav = csvFile('.\YinYue\wav\wakeUpMusic')
+#    list_wav = []
+    csvFile('.\YinYue\wav\sleepingMusic')
     
 
         
